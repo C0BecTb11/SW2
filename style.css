@@ -1,0 +1,173 @@
+/* Базовые настройки */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #020205;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden; /* Запрет прокрутки экрана */
+}
+
+/* Экраны и панели */
+.screen {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 100;
+    background: #020205;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.panel {
+    background: rgba(10, 15, 30, 0.9);
+    padding: 25px;
+    border: 1px solid #00d4ff;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Инпуты и Кнопки */
+input, select {
+    padding: 12px;
+    background: #050510;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 4px;
+    outline: none;
+}
+
+input:focus, select:focus {
+    border-color: #00d4ff;
+}
+
+.btn {
+    padding: 12px;
+    font-weight: bold;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn.primary { background: #00d4ff; color: #000; }
+.btn.secondary { background: transparent; color: #00d4ff; border: 1px solid #00d4ff; }
+
+/* Сообщения об ошибках/успехе */
+.msg { font-size: 0.9rem; text-align: center; margin: 0; height: 15px; }
+
+/* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
+#galaxy-map {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1; /* Карта на заднем фоне */
+}
+
+#bottom-ui {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%;
+    background: rgba(10, 15, 25, 0.95);
+    border-top: 2px solid #00d4ff;
+    z-index: 10; /* Интерфейс поверх карты */
+    padding-bottom: env(safe-area-inset-bottom); /* Для iPhone */
+}
+
+.ui-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: rgba(0, 212, 255, 0.1);
+    font-weight: bold;
+    border-bottom: 1px solid #333;
+}
+
+#ui-credits { color: #14FF00; }
+
+.ui-content {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+.ui-content p { margin: 5px 0; }
+
+.ui-actions {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+}
+
+.btn-small {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 8px 15px;
+    border-radius: 4px;
+}
+
+/* --- ПЛАНШЕТ ДАННЫХ ФРАКЦИИ --- */
+.data-pad {
+    position: absolute;
+    top: 0; 
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 120px); /* Занимает весь экран ДО нижней панели */
+    background: rgba(5, 8, 15, 0.95);
+    z-index: 5; /* Поверх карты, но под панелью кнопок */
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto; /* Добавляем прокрутку, если игроков много */
+    backdrop-filter: blur(5px);
+}
+
+.faction-card {
+    background: rgba(20, 30, 50, 0.6);
+    border-left: 3px solid #00d4ff;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.faction-card p {
+    margin: 5px 0;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+/* --- СЕТКА ПОСТРОЕК ПЛАНЕТЫ (ИНВЕНТАРЬ) --- */
+.building-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 колонки (будет 2 ряда по 4) */
+    gap: 8px;
+}
+
+.building-slot {
+    background: rgba(20, 30, 50, 0.6);
+    border: 1px dashed #444;
+    border-radius: 4px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #777;
+    text-align: center;
+    cursor: pointer;
+}
+
+.building-slot:active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: #00d4ff;
+}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Галактика в огне</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <div id="auth-screen" class="screen">
+        <div class="panel">
+            <h1>Доступ к Сети</h1>
+            <input type="text" id="login" placeholder="Логин игрока">
+            <input type="password" id="password" placeholder="Пароль">
+            
+            <div id="reg-extra">
+                <p class="label">Выберите фракцию:</p>
+                <select id="faction">
+                    <option value="rep">Галактическая Республика</option>
+                    <option value="cis">Конфедерация (КНС)</option>
+                    <option value="syn">Синдикат</option>
+                </select>
+            </div>
+
+            <button class="btn primary" id="btn-login" onclick="login()">Войти</button>
+            <button class="btn secondary" id="btn-register" onclick="register()">Создать аккаунт</button>
+            <p id="auth-msg" class="msg"></p>
+        </div>
+    </div>
+
+    <div id="char-screen" class="screen hidden">
+        <div class="panel">
+            <h2>Личное дело</h2>
+            <p>Введите данные вашего персонажа</p>
+            <input type="text" id="first-name" placeholder="Имя">
+            <input type="text" id="last-name" placeholder="Фамилия">
+            <button class="btn primary" onclick="createCharacter()">Подтвердить и Высадиться</button>
+            <p id="char-msg" class="msg"></p>
+        </div>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <canvas id="galaxy-map"></canvas>
+        
+                <div id="faction-panel" class="hidden data-pad">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00d4ff; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="margin: 0; color: #00d4ff;">Сводка Фракции</h2>
+                <button class="btn-small" onclick="closeFactionPanel()" style="border-color: #ff4444; color: #ff4444;">Закрыть</button>
+            </div>
+            
+            <div id="faction-list">
+                <p style="color: #aaa; text-align: center;">Ожидание данных...</p>
+            </div>
+        </div>
+
+        
+        <div id="bottom-ui">
+            <div class="ui-header">
+                <span id="ui-name">Имя Фамилия</span>
+                <span id="ui-credits">1000 кр.</span>
+            </div>
+            <div class="ui-content">
+                <p id="ui-location">Местоположение: Столица</p>
+                <p id="ui-role">Звание: Кадет</p>
+            </div>
+                       <div class="ui-actions">
+                <button class="btn-small" onclick="openFactionPanel()">Фракция</button>
+                <button class="btn-small">Флот</button>
+                <button class="btn-small">Политика</button>
+                <button class="btn-small" onclick="logout()" style="border-color: #ff4444; color: #ff4444;">Выход</button>
+            </div>
+        </div>
+    </div>
+    
+            <div id="planet-panel" class="hidden data-pad">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00d4ff; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 id="planet-title" style="margin: 0; color: #00d4ff;">Название Планеты</h2>
+                <button class="btn-small" onclick="closePlanetPanel()" style="border-color: #ff4444; color: #ff4444;">Закрыть</button>
+            </div>
+            
+            <div style="margin-bottom: 15px; color: #ccc; font-size: 0.9rem;">
+                <p style="margin: 5px 0;">Фракция: <span id="planet-faction" style="color: #fff; font-weight: bold;">...</span></p>
+                <p style="margin: 5px 0;">Губернатор: <span id="planet-owner" style="color: #14FF00;">...</span></p>
+            </div>
+
+            <h4 style="color: #00d4ff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">Присутствующие лица:</h4>
+            <div id="planet-players" style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; min-height: 20px;">
+                Загрузка сенсоров...
+            </div>
+
+            <h4 style="color: #00d4ff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">Инфраструктура (8 слотов):</h4>
+            <div class="building-grid" id="planet-buildings">
+                </div>
+        </div>
+
+
+    <script src="supabase.js"></script>
+    <script src="ui.js"></script>
+    <script src="auth.js"></script>
+    <script src="character.js"></script>
+    <script src="map.js"></script>
+    <script src="faction.js"></script>
+    <script src="planet.js"></script>
+
+
+</body>
+</html>
