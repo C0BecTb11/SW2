@@ -1,52 +1,112 @@
-// ui.js - Управление визуалом
+// ui.js — Управление экранами и отображение данных Лорда
 
-// Функция переключения экранов
 function showScreen(screenId) {
-    // Прячем всё
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('char-screen').classList.add('hidden');
-    document.getElementById('game-screen').classList.add('hidden');
-    
-    // Показываем только нужный
-    document.getElementById(screenId).classList.remove('hidden');
+    ['auth-screen','register-screen','char-screen','game-screen'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+    const target = document.getElementById(screenId);
+    if (target) target.classList.remove('hidden');
 }
 
-// Функция вывода цветного текста (ошибки/успех)
 function showMsg(elementId, text, color) {
     const el = document.getElementById(elementId);
+    if (!el) return;
     el.innerText = text;
     el.style.color = color;
 }
 
-// Функция загрузки всех данных игрока
-async function loadGameData() {
-    // 1. Узнаем, кто в игре
-    const { data: { session } } = await client.auth.getSession();
-    if (!session) return;
-    const userId = session.user.id;
+// Рендер нижней панели из кеша — 0 запросов к БД
+function renderBottomUI() {
+    const profile = Cache.myProfile;
+    if (!profile) return;
 
-    // 2. Качаем профиль из БД
-    const { data: profile } = await client.from('profiles').select('*').eq('id', userId).single();
-    
-    // 3. Качаем название планеты, на которой стоит игрок
-    let locationName = "Открытый космос";
+    const fullName = profile.first_name + ' ' + profile.last_name;
+    document.getElementById('ui-tab-name').innerText = fullName;
+    document.getElementById('ui-tab-credits').innerText = profile.credits + ' д.';
+
+    let locationName = 'В пути';
     if (profile.location_id) {
-        const { data: planet } = await client.from('planets').select('name').eq('id', profile.location_id).single();
-        if (planet) locationName = planet.name;
+        const castle = Cache.getCastle(profile.location_id);
+        if (castle) locationName = castle.name;
     }
+    document.getElementById('ui-location').innerText = locationName;
 
-    // 4. Вставляем данные в нижнюю панель
-    document.getElementById('ui-name').innerText = profile.first_name + ' ' + profile.last_name;
-    document.getElementById('ui-credits').innerText = profile.credits + ' кр.';
-    document.getElementById('ui-location').innerText = "Место: " + locationName;
-    
-    let roleName = "Кадет";
-    if (profile.role === 'leader') roleName = "Глава Фракции";
-    if (profile.role === 'commander') roleName = "Командор";
-    document.getElementById('ui-role').innerText = "Звание: " + roleName;
-
-    // 5. Даем команду нарисовать карту!
-    if (typeof loadMap === 'function') {
-        loadMap();
-    }
+    let roleName = 'Сквайр';
+    if (profile.role === 'leader') roleName = 'Король';
+    if (profile.role === 'commander') roleName = 'Маршал';
+    document.getElementById('ui-role').innerText = roleName;
 }
+
+let uiCollapsed = false;
+function toggleUI() {
+    uiCollapsed = !uiCollapsed;
+    document.getElementById('bottom-ui').classList.toggle('collapsed', uiCollapsed);
+}
+
+// Запускается один раз при входе
+async function loadGameData() {
+    const ok = await Cache.init();
+    if (!ok) return;
+    renderBottomUI();
+    if (typeof loadMap === 'function') loadMap();
+}
+
+// ================================================
+// МОДАЛЬНЫЕ ОКНА — замена alert/confirm
+// ================================================
+
+const Modal = {
+    // Показать уведомление (замена alert)
+    // icon: эмодзи, title: заголовок, text: текст
+    notify(icon, title, text) {
+        document.getElementById('modal-icon').innerText = icon;
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerText = text;
+
+        const actions = document.getElementById('modal-actions');
+        actions.innerHTML = '';
+        const btn = document.createElement('button');
+        btn.className = 'modal-btn ok';
+        btn.innerText = 'Понял';
+        btn.onclick = () => this.close();
+        actions.appendChild(btn);
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+    },
+
+    // Показать диалог подтверждения (замена confirm)
+    // onConfirm — коллбэк при нажатии "Да"
+    ask(icon, title, text, confirmLabel, onConfirm) {
+        document.getElementById('modal-icon').innerText = icon;
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerText = text;
+
+        const actions = document.getElementById('modal-actions');
+        actions.innerHTML = '';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'modal-btn cancel';
+        cancelBtn.innerText = 'Отмена';
+        cancelBtn.onclick = () => this.close();
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'modal-btn confirm';
+        confirmBtn.innerText = confirmLabel;
+        confirmBtn.onclick = () => { this.close(); onConfirm(); };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+    },
+
+    close() {
+        document.getElementById('modal-overlay').classList.add('hidden');
+    }
+};
+
+// Закрытие по клику на фон
+document.getElementById('modal-overlay')?.addEventListener('click', function(e) {
+    if (e.target === this) Modal.close();
+});

@@ -3,107 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Галактика в огне</title>
+    <title>Эпоха Лордов</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
+    <!-- ===== ЭКРАН ВХОДА ===== -->
     <div id="auth-screen" class="screen">
-        <div class="panel">
-            <h1>Доступ к Сети</h1>
-            <input type="text" id="login" placeholder="Логин игрока">
-            <input type="password" id="password" placeholder="Пароль">
-            
-            <div id="reg-extra">
-                <p class="label">Выберите фракцию:</p>
-                <select id="faction">
-                    <option value="rep">Галактическая Республика</option>
-                    <option value="cis">Конфедерация (КНС)</option>
-                    <option value="syn">Синдикат</option>
-                </select>
-            </div>
+        <div class="auth-bg">
+            <div class="auth-particles"></div>
+        </div>
+        <div class="auth-container">
+            <div class="auth-crest">⚔</div>
+            <h1 class="auth-title">Эпоха<br><span>Лордов</span></h1>
+            <p class="auth-subtitle">— Врата Кальрадии —</p>
 
-            <button class="btn primary" id="btn-login" onclick="login()">Войти</button>
-            <button class="btn secondary" id="btn-register" onclick="register()">Создать аккаунт</button>
-            <p id="auth-msg" class="msg"></p>
+            <div class="auth-panel">
+                <input class="auth-input" type="text" id="login" placeholder="Имя Лорда" autocomplete="off">
+                <input class="auth-input" type="password" id="password" placeholder="Тайный пароль">
+                <p id="auth-msg" class="msg"></p>
+                <button class="auth-btn primary" onclick="login()">
+                    <span class="btn-icon">🏰</span> Войти в мир
+                </button>
+                <div class="auth-divider"><span>или</span></div>
+                <button class="auth-btn secondary" onclick="showRegisterScreen()">
+                    <span class="btn-icon">📜</span> Принести присягу
+                </button>
+            </div>
         </div>
     </div>
 
-    <div id="char-screen" class="screen hidden">
-        <div class="panel">
-            <h2>Личное дело</h2>
-            <p>Введите данные вашего персонажа</p>
-            <input type="text" id="first-name" placeholder="Имя">
-            <input type="text" id="last-name" placeholder="Фамилия">
-            <button class="btn primary" onclick="createCharacter()">Подтвердить и Высадиться</button>
-            <p id="char-msg" class="msg"></p>
+    <!-- ===== ЭКРАН РЕГИСТРАЦИИ ===== -->
+    <div id="register-screen" class="screen hidden">
+        <div class="auth-bg">
+            <div class="auth-particles"></div>
         </div>
-    </div>
+        <div class="auth-container">
+            <button class="back-btn" onclick="showScreen('auth-screen')">← Назад</button>
+            <div class="auth-crest">📜</div>
+            <h1 class="auth-title" style="font-size:1.6rem;">Присяга<br><span>Королевству</span></h1>
+            <p class="auth-subtitle">— Изберите своё знамя —</p>
 
-    <div id="game-screen" class="hidden">
-        <canvas id="galaxy-map"></canvas>
-        
-                <div id="faction-panel" class="hidden data-pad">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00d4ff; padding-bottom: 10px; margin-bottom: 15px;">
-                <h2 style="margin: 0; color: #00d4ff;">Сводка Фракции</h2>
-                <button class="btn-small" onclick="closeFactionPanel()" style="border-color: #ff4444; color: #ff4444;">Закрыть</button>
-            </div>
-            
-            <div id="faction-list">
-                <p style="color: #aaa; text-align: center;">Ожидание данных...</p>
-            </div>
-        </div>
+            <div class="auth-panel">
+                <input class="auth-input" type="text" id="reg-login" placeholder="Имя Лорда" autocomplete="off">
+                <input class="auth-input" type="password" id="reg-password" placeholder="Тайный пароль">
 
-        
-        <div id="bottom-ui">
-            <div class="ui-header">
-                <span id="ui-name">Имя Фамилия</span>
-                <span id="ui-credits">1000 кр.</span>
-            </div>
-            <div class="ui-content">
-                <p id="ui-location">Местоположение: Столица</p>
-                <p id="ui-role">Звание: Кадет</p>
-            </div>
-                       <div class="ui-actions">
-                <button class="btn-small" onclick="openFactionPanel()">Фракция</button>
-                <button class="btn-small">Флот</button>
-                <button class="btn-small">Политика</button>
-                <button class="btn-small" onclick="logout()" style="border-color: #ff4444; color: #ff4444;">Выход</button>
-            </div>
-        </div>
-    </div>
-    
-            <div id="planet-panel" class="hidden data-pad">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00d4ff; padding-bottom: 10px; margin-bottom: 15px;">
-                <h2 id="planet-title" style="margin: 0; color: #00d4ff;">Название Планеты</h2>
-                <button class="btn-small" onclick="closePlanetPanel()" style="border-color: #ff4444; color: #ff4444;">Закрыть</button>
-            </div>
-            
-            <div style="margin-bottom: 15px; color: #ccc; font-size: 0.9rem;">
-                <p style="margin: 5px 0;">Фракция: <span id="planet-faction" style="color: #fff; font-weight: bold;">...</span></p>
-                <p style="margin: 5px 0;">Губернатор: <span id="planet-owner" style="color: #14FF00;">...</span></p>
-            </div>
-
-            <h4 style="color: #00d4ff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">Присутствующие лица:</h4>
-            <div id="planet-players" style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; min-height: 20px;">
-                Загрузка сенсоров...
-            </div>
-
-            <h4 style="color: #00d4ff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">Инфраструктура (8 слотов):</h4>
-            <div class="building-grid" id="planet-buildings">
+                <p class="faction-label">Кому присягнёте?</p>
+                <div class="faction-cards">
+                    <label class="faction-card-pick" data-faction="lion">
+                        <input type="radio" name="faction" value="lion" checked>
+                        <div class="faction-pick-inner red">
+                            <span class="f-icon">🦁</span>
+                            <span class="f-name">Королевство Льва</span>
+                            <span class="f-sub">Красные</span>
+                        </div>
+                    </label>
+                    <label class="faction-card-pick" data-faction="empire">
+                        <input type="radio" name="faction" value="empire">
+                        <div class="faction-pick-inner blue">
+                            <span class="f-icon">🦅</span>
+                            <span class="f-name">Северная Империя</span>
+                            <span class="f-sub">Синие</span>
+                        </div>
+                    </label>
+                    <label class="faction-card-pick" data-faction="horde">
+                        <input type="radio" name="faction" value="horde">
+                        <div class="faction-pick-inner green">
+                            <span class="f-icon">🐉</span>
+                            <span class="f-name">Степной Каганат</span>
+                            <span class="f-sub">Зелёные</span>
+                        </div>
+                    </label>
                 </div>
+
+                <p id="reg-msg" class="msg"></p>
+                <button class="auth-btn primary" onclick="register()">
+                    <span class="btn-icon">⚔</span> Скрепить печатью
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ЭКРАН СОЗДАНИЯ ПЕРСОНАЖА ===== -->
+    <div id="char-screen" class="screen hidden">
+        <div class="auth-bg">
+            <div class="auth-particles"></div>
+        </div>
+        <div class="auth-container">
+            <div class="auth-crest">👑</div>
+            <h1 class="auth-title" style="font-size:1.6rem;">Гербовая<br><span>Книга</span></h1>
+            <p class="auth-subtitle">— Впишите имя в историю —</p>
+
+            <div class="auth-panel">
+                <input class="auth-input" type="text" id="first-name" placeholder="Имя" autocomplete="off">
+                <input class="auth-input" type="text" id="last-name" placeholder="Прозвище / Род" autocomplete="off">
+                <p id="char-msg" class="msg"></p>
+                <button class="auth-btn primary" onclick="createCharacter()">
+                    <span class="btn-icon">🗡</span> Начать поход
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ИГРОВОЙ ЭКРАН ===== -->
+    <div id="game-screen" class="hidden">
+        
+        <canvas id="world-map"></canvas>
+
+        <!-- ПЛАШКА ПОХОДА — появляется когда лорд в движении -->
+        <div id="march-hud" class="hidden">
+            <div id="march-hud-inner">
+                <div class="march-row">
+                    <span class="march-icon">🗺</span>
+                    <div class="march-info">
+                        <span class="march-label">В походе</span>
+                        <span id="march-destination" class="march-dest">...</span>
+                    </div>
+                    <div class="march-timer" id="march-timer">--:--:--</div>
+                </div>
+                <div class="march-progress-wrap">
+                    <div class="march-progress-bar" id="march-progress-bar"></div>
+                </div>
+                <button class="march-stop-btn" onclick="stopMarch()">
+                    ⛺ Разбить лагерь
+                </button>
+            </div>
+        </div>
+        
+        <div id="faction-panel" class="hidden data-pad">
+            <div class="pad-header">
+                <h2>Лорды Королевства</h2>
+                <button class="close-btn" onclick="closeFactionPanel()">✕</button>
+            </div>
+            <div id="faction-list"><p>Гонцы собирают вести...</p></div>
         </div>
 
+        <div id="castle-panel" class="hidden data-pad">
+            <div class="pad-header">
+                <h2 id="castle-title">Название Замка</h2>
+                <button class="close-btn" onclick="closeCastlePanel()">✕</button>
+            </div>
+            <div style="margin-bottom: 15px; color: #ccc; font-size: 0.9rem;">
+                <p>Сюзерен: <span id="castle-faction" style="color: #fff; font-weight: bold;">...</span></p>
+                <p>Наместник: <span id="castle-owner" style="color: #ffd700;">...</span></p>
+            </div>
+            <h4 class="section-title">Лорды в замке:</h4>
+            <div id="castle-players" style="color: #aaa; font-size: 0.9rem; margin-bottom: 15px;">Пусто...</div>
+            <h4 class="section-title">Постройки (8 слотов):</h4>
+            <div class="building-grid" id="castle-buildings"></div>
+        </div>
+                
+        <div id="army-panel" class="hidden data-pad">
+            <div class="pad-header">
+                <h2>Сбор Войска</h2>
+                <button class="close-btn" onclick="closeArmyPanel()">✕</button>
+            </div>
+            <div style="margin-bottom: 20px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; border: 1px solid #444;">
+                <p style="margin: 0 0 5px 0; font-size: 0.9rem; color: #ccc;">Отряд: <span id="army-capacity" style="color: #fff; font-weight: bold;">0 / 35</span> чел.</p>
+                <div style="width: 100%; background: #222; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #111;">
+                    <div id="army-bar" style="width: 0%; background: #22aa44; height: 100%; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <h4 class="section-title">Полки (8 слотов):</h4>
+            <div class="building-grid" id="army-slots"></div>
+        </div>
+
+        <div id="inventory-panel" class="hidden data-pad">
+            <div class="pad-header">
+                <h2>Обоз и Снаряжение</h2>
+                <button class="close-btn" onclick="closeInventoryPanel()">✕</button>
+            </div>
+            <div style="margin-bottom: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 5px; border: 1px solid #a88734;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #ccc;">Общий вес:</span>
+                    <span id="inv-weight" style="color: #fff; font-weight: bold;">0 / 50 кг</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #ccc;">Вьючные лошади:</span>
+                    <span id="inv-horses" style="color: #ffd700; font-weight: bold;">0 шт.</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid #444; padding-top: 10px;">
+                    <span style="color: #ccc;">Скорость отряда:</span>
+                    <span id="inv-speed" style="color: #22aa44; font-weight: bold;">100%</span>
+                </div>
+            </div>
+            <h4 class="section-title">Груз:</h4>
+            <div id="inventory-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+
+        <div id="bottom-ui">
+            <!-- Таб для сворачивания/разворачивания -->
+            <div id="ui-tab" onclick="toggleUI()">
+                <span id="ui-tab-name">Тейлор Йоханссон</span>
+                <span id="ui-tab-credits" style="color:#ffd700;">1000 д.</span>
+                <span id="ui-tab-arrow">▾</span>
+            </div>
+
+            <!-- Раскрывающаяся часть -->
+            <div id="ui-body">
+                <div class="ui-info-row">
+                    <span class="ui-info-item">📍 <span id="ui-location">...</span></span>
+                    <span class="ui-info-item">👑 <span id="ui-role">Сквайр</span></span>
+                </div>
+                <div class="ui-actions">
+                    <button class="hud-btn" onclick="openFactionPanel()">
+                        <span class="hud-btn-icon">🏛</span>
+                        <span>Государство</span>
+                    </button>
+                    <button class="hud-btn" onclick="openArmyPanel()">
+                        <span class="hud-btn-icon">⚔️</span>
+                        <span>Отряд</span>
+                    </button>
+                    <button class="hud-btn">
+                        <span class="hud-btn-icon">🕊</span>
+                        <span>Политика</span>
+                    </button>
+                    <button class="hud-btn" onclick="openInventoryPanel()">
+                        <span class="hud-btn-icon">🎒</span>
+                        <span>Обоз</span>
+                    </button>
+                    <button class="hud-btn danger" onclick="logout()">
+                        <span class="hud-btn-icon">🚪</span>
+                        <span>Выйти</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ===== МОДАЛЬНОЕ ОКНО ===== -->
+    <div id="modal-overlay" class="hidden">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-icon" id="modal-icon">⚔</span>
+                <h3 class="modal-title" id="modal-title">Заголовок</h3>
+            </div>
+            <div class="modal-body" id="modal-body">Текст</div>
+            <div class="modal-actions" id="modal-actions"></div>
+        </div>
+    </div>
 
     <script src="supabase.js"></script>
+    <script src="cache.js"></script>
     <script src="ui.js"></script>
     <script src="auth.js"></script>
     <script src="character.js"></script>
     <script src="map.js"></script>
     <script src="faction.js"></script>
-    <script src="planet.js"></script>
-
+    <script src="castle.js"></script>
+    <script src="army.js"></script>
+    <script src="inventory.js"></script>
 
 </body>
 </html>

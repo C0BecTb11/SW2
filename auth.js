@@ -1,31 +1,33 @@
-// auth.js - Система аккаунтов
+// auth.js — Система присяги (аккаунтов)
+
+function showRegisterScreen() {
+    showScreen('register-screen');
+    // Очищаем поля
+    document.getElementById('reg-login').value = '';
+    document.getElementById('reg-password').value = '';
+    document.getElementById('reg-msg').innerText = '';
+}
 
 async function register() {
-    const loginStr = document.getElementById('login').value.trim();
-    const passStr = document.getElementById('password').value;
-    const factionStr = document.getElementById('faction').value;
+    const loginStr = document.getElementById('reg-login').value.trim();
+    const passStr = document.getElementById('reg-password').value;
+    const factionEl = document.querySelector('input[name="faction"]:checked');
+    const factionStr = factionEl ? factionEl.value : 'lion';
 
-    if (!loginStr || !passStr) return showMsg('auth-msg', 'Введите логин и пароль', '#ff4444');
+    if (!loginStr || !passStr) return showMsg('reg-msg', 'Введите Имя и Пароль', '#8a1c1c');
+    if (passStr.length < 6) return showMsg('reg-msg', 'Пароль — не менее 6 символов', '#8a1c1c');
 
-    // Тот самый трюк с фейковой почтой
-    const fakeEmail = loginStr.toLowerCase() + '@galaxy.local';
-    showMsg('auth-msg', 'Регистрация в сети...', '#00d4ff');
+    showMsg('reg-msg', 'Отправка гонцов...', '#ffd700');
 
-    const { data, error } = await client.auth.signUp({
-        email: fakeEmail,
-        password: passStr,
-    });
+    const fakeEmail = loginStr.toLowerCase() + '@calradia.local';
+    const { data, error } = await client.auth.signUp({ email: fakeEmail, password: passStr });
+    if (error) return showMsg('reg-msg', 'Ошибка: ' + error.message, '#8a1c1c');
 
-    if (error) return showMsg('auth-msg', 'Ошибка: ' + error.message, '#ff4444');
+    const { error: profileError } = await client.from('profiles').insert([{
+        id: data.user.id, username: loginStr, faction: factionStr
+    }]);
+    if (profileError) return showMsg('reg-msg', 'Ошибка летописи', '#8a1c1c');
 
-    // Сохраняем логин и фракцию (Имя и Фамилию персонаж введет на следующем шаге!)
-    const { error: profileError } = await client
-        .from('profiles')
-        .insert([{ id: data.user.id, username: loginStr, faction: factionStr }]);
-
-    if (profileError) return showMsg('auth-msg', 'Ошибка БД', '#ff4444');
-
-    // Переключаем игрока на создание Личного Дела (Персонажа)
     showScreen('char-screen');
 }
 
@@ -33,39 +35,44 @@ async function login() {
     const loginStr = document.getElementById('login').value.trim();
     const passStr = document.getElementById('password').value;
 
-    if (!loginStr || !passStr) return showMsg('auth-msg', 'Введите логин и пароль', '#ff4444');
+    if (!loginStr || !passStr) return showMsg('auth-msg', 'Введите Имя и Пароль', '#8a1c1c');
 
-    const fakeEmail = loginStr.toLowerCase() + '@galaxy.local';
-    showMsg('auth-msg', 'Проверка доступов...', '#00d4ff');
+    showMsg('auth-msg', 'Проверка печатей...', '#ffd700');
 
-    const { data, error } = await client.auth.signInWithPassword({
-        email: fakeEmail,
-        password: passStr,
-    });
-
-    if (error) return showMsg('auth-msg', 'Неверный логин или пароль', '#ff4444');
-
-        // Проверяем: скачался ли профиль и есть ли там Имя
-    const { data: profile, error: profileError } = await client
+    // Сначала проверяем — есть ли такой лорд в летописи
+    const { data: existing } = await client
         .from('profiles')
-        .select('first_name')
-        .eq('id', data.user.id)
+        .select('id')
+        .eq('username', loginStr)
         .single();
 
-    // Если профиль вообще не найден (null) ИЛИ в нем нет Имени
-    if (profileError || !profile || !profile.first_name) {
-        // Отправляем заполнять Личное Дело
+    if (!existing) {
+        return showMsg('auth-msg', 'Лорд с таким именем не найден. Принесите присягу!', '#8a1c1c');
+    }
+
+    const fakeEmail = loginStr.toLowerCase() + '@calradia.local';
+    const { data, error } = await client.auth.signInWithPassword({ email: fakeEmail, password: passStr });
+    if (error) return showMsg('auth-msg', 'Неверный пароль', '#8a1c1c');
+
+    const { data: profile } = await client.from('profiles')
+        .select('first_name').eq('id', data.user.id).single();
+
+    showMsg('auth-msg', '', '');
+    if (!profile?.first_name) {
         showScreen('char-screen');
     } else {
-        // Если имя есть - сразу пускаем на Глобальную Карту
         showScreen('game-screen');
-        
         loadGameData();
     }
 }
 
 async function logout() {
     await client.auth.signOut();
-    showScreen('auth-screen');
+    Cache.planets = []; Cache.players = [];
+    Cache.myProfile = null; Cache.myUserId = null;
+    // Очищаем поля входа
+    document.getElementById('login').value = '';
+    document.getElementById('password').value = '';
     document.getElementById('auth-msg').innerText = '';
+    showScreen('auth-screen');
 }
