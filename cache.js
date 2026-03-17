@@ -29,15 +29,17 @@ const Cache = {
     },
 
     // Подписка на изменения таблицы profiles
-    _subscribeRealtime() {
+    async _subscribeRealtime() {
         if (this._realtimeChannel) {
             client.removeChannel(this._realtimeChannel);
         }
 
+        // Получаем токен авторизации
+        const { data: { session } } = await client.auth.getSession();
+        const token = session?.access_token;
+
         this._realtimeChannel = client
-            .channel('profiles-changes', {
-                config: { broadcast: { self: true } }
-            })
+            .channel('profiles-changes')
             .on(
                 'postgres_changes',
                 {
@@ -47,14 +49,22 @@ const Cache = {
                 },
                 (payload) => this._handleRealtimeUpdate(payload)
             )
-            .subscribe((status, err) => {
+            .subscribe(async (status, err) => {
                 console.log('Realtime статус:', status, err || '');
-                // Если не подключилось — fallback на поллинг каждые 15 сек
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Realtime подключён');
+                }
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                    console.log('Realtime недоступен, включаем поллинг...');
+                    console.log('⚠️ Realtime недоступен, включаем поллинг...');
                     this._startPollingFallback();
                 }
             });
+
+        // Устанавливаем токен для realtime соединения
+        if (token) {
+            await client.realtime.setAuth(token);
+            console.log('🔑 Realtime токен установлен');
+        }
     },
 
     // Запасной поллинг если Realtime не работает
