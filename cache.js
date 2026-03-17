@@ -30,21 +30,54 @@ const Cache = {
 
     // Подписка на изменения таблицы profiles
     _subscribeRealtime() {
-        // Если уже подписаны — отписываемся сначала
         if (this._realtimeChannel) {
             client.removeChannel(this._realtimeChannel);
         }
 
         this._realtimeChannel = client
-            .channel('profiles-changes')
+            .channel('profiles-changes', {
+                config: { broadcast: { self: true } }
+            })
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'profiles' },
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles'
+                },
                 (payload) => this._handleRealtimeUpdate(payload)
             )
-            .subscribe((status) => {
-                console.log('Realtime статус:', status);
+            .subscribe((status, err) => {
+                console.log('Realtime статус:', status, err || '');
+                // Если не подключилось — fallback на поллинг каждые 15 сек
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    console.log('Realtime недоступен, включаем поллинг...');
+                    this._startPollingFallback();
+                }
             });
+    },
+
+    // Запасной поллинг если Realtime не работает
+    _startPollingFallback() {
+        if (this._pollInterval) return;
+        this._pollInterval = setInterval(async () => {
+            const now = Date.now();
+            const anyoneMoving = this.players.some(p =>
+                p.move_end_time && p.move_end_time > now && !p.location_id
+            );
+            if (!anyoneMoving) return;
+            const { data } = await client
+                .from('profiles')
+                .select('id,location_id,move_start_time,move_end_time,start_x,start_y,target_x,target_y,credits,role');
+            if (!data) return;
+            data.forEach(fresh => {
+                const idx = this.players.findIndex(p => p.id === fresh.id);
+                if (idx !== -1) {
+                    this.players[idx] = { ...this.players[idx], ...fresh };
+                    if (fresh.id === this.myUserId) this.myProfile = this.players[idx];
+                }
+            });
+        }, 15000);
     },
 
     // Обработка входящего обновления от Supabase
@@ -77,6 +110,10 @@ const Cache = {
         if (this._realtimeChannel) {
             client.removeChannel(this._realtimeChannel);
             this._realtimeChannel = null;
+        }
+        if (this._pollInterval) {
+            clearInterval(this._pollInterval);
+            this._pollInterval = null;
         }
     },
 
