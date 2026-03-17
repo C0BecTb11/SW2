@@ -49,6 +49,7 @@ const Cache = {
 
     // Обработка входящего обновления от Supabase
     _handleRealtimeUpdate(payload) {
+        console.log('🔔 Realtime событие:', payload.eventType, payload.new?.id);
         const fresh = payload.new;
         if (!fresh || !fresh.id) return;
 
