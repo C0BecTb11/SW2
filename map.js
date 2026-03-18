@@ -184,8 +184,15 @@ function loadMap() {
             offsetX = (window.innerWidth / 2) - (myCity.x * scale);
             offsetY = (window.innerHeight / 2) - (myCity.y * scale);
         }
+    } else if (me && me.move_end_time > Date.now()) {
+        // В движении — центрируемся на текущей интерполированной позиции
+        const totalTime = me.move_end_time - me.move_start_time;
+        const progress = totalTime > 0 ? Math.min((Date.now() - me.move_start_time) / totalTime, 1) : 1;
+        const curX = me.start_x + (me.target_x - me.start_x) * progress;
+        const curY = me.start_y + (me.target_y - me.start_y) * progress;
+        offsetX = (window.innerWidth / 2) - (curX * scale);
+        offsetY = (window.innerHeight / 2) - (curY * scale);
     } else if (me && me.target_x && me.target_y) {
-        // Центрируем на текущей позиции если в поле
         offsetX = (window.innerWidth / 2) - (me.target_x * scale);
         offsetY = (window.innerHeight / 2) - (me.target_y * scale);
     }
@@ -237,7 +244,7 @@ function drawMap() {
     const myUserId = Cache.myUserId;
 
     Cache.players.forEach(player => {
-        if (!player.first_name) return; // Ещё не создал персонажа
+        if (!player.first_name) return;
         let drawX = 0; let drawY = 0;
         let inCastle = false;
 

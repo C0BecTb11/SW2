@@ -1,15 +1,27 @@
 // cache.js - Глобальный кеш данных игры
-// Позиции игроков обновляются через Supabase Realtime — 0 поллинга
 
 const Cache = {
     castles: [],
     players: [],
     myProfile: null,
     myUserId: null,
-
     _realtimeChannel: null,
+    _pollInterval: null,
 
-    // Одноразовая загрузка при старте игры
+    // Нормализуем числовые поля — Supabase int8 приходит как строка
+    _normalize(p) {
+        return {
+            ...p,
+            move_start_time: Number(p.move_start_time) || 0,
+            move_end_time:   Number(p.move_end_time)   || 0,
+            start_x:  Number(p.start_x)  || 0,
+            start_y:  Number(p.start_y)  || 0,
+            target_x: Number(p.target_x) || 0,
+            target_y: Number(p.target_y) || 0,
+            credits:  Number(p.credits)  || 0,
+        };
+    },
+
     async init() {
         const { data: { session } } = await client.auth.getSession();
         if (!session) return false;
@@ -21,124 +33,92 @@ const Cache = {
         ]);
 
         if (castlesRes.data) this.castles = castlesRes.data;
-        if (playersRes.data) this.players = playersRes.data;
+        if (playersRes.data) this.players = playersRes.data.map(p => this._normalize(p));
         this.myProfile = this.players.find(p => p.id === this.myUserId) || null;
 
         this._subscribeRealtime();
         return true;
     },
 
-    // Подписка на изменения таблицы profiles
     async _subscribeRealtime() {
-        if (this._realtimeChannel) {
-            client.removeChannel(this._realtimeChannel);
-        }
+        if (this._realtimeChannel) client.removeChannel(this._realtimeChannel);
 
-        // Получаем токен авторизации
         const { data: { session } } = await client.auth.getSession();
         const token = session?.access_token;
 
         this._realtimeChannel = client
             .channel('profiles-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'profiles'
-                },
+            .on('postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'profiles' },
                 (payload) => this._handleRealtimeUpdate(payload)
             )
             .subscribe(async (status, err) => {
-                console.log('Realtime статус:', status, err || '');
-                if (status === 'SUBSCRIBED') {
-                    console.log('✅ Realtime подключён');
-                }
+                console.log('Realtime:', status);
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                    console.log('⚠️ Realtime недоступен, включаем поллинг...');
                     this._startPollingFallback();
                 }
             });
 
-        // Устанавливаем токен для realtime соединения
-        if (token) {
-            await client.realtime.setAuth(token);
-            console.log('🔑 Realtime токен установлен');
+        if (token) await client.realtime.setAuth(token);
+    },
+
+    _handleRealtimeUpdate(payload) {
+        if (!payload.new?.id) return;
+
+        const fresh = this._normalize(payload.new);
+
+        if (payload.eventType === 'DELETE') {
+            const idx = this.players.findIndex(p => p.id === fresh.id);
+            if (idx !== -1) this.players.splice(idx, 1);
+            return;
+        }
+
+        const idx = this.players.findIndex(p => p.id === fresh.id);
+        if (idx !== -1) {
+            // Сохраняем поля которые Realtime не присылает (first_name, last_name и т.д.)
+            this.players[idx] = { ...this.players[idx], ...fresh };
+            if (fresh.id === this.myUserId) this.myProfile = this.players[idx];
+        } else {
+            this.players.push(fresh);
         }
     },
 
-    // Запасной поллинг если Realtime не работает
+    // Поллинг как запасной вариант
     _startPollingFallback() {
         if (this._pollInterval) return;
+        console.log('⚠️ Запускаем поллинг каждые 10 сек');
         this._pollInterval = setInterval(async () => {
-            const now = Date.now();
-            const anyoneMoving = this.players.some(p =>
-                p.move_end_time && p.move_end_time > now && !p.location_id
-            );
-            if (!anyoneMoving) return;
             const { data } = await client
                 .from('profiles')
-                .select('id,location_id,move_start_time,move_end_time,start_x,start_y,target_x,target_y,credits,role');
+                .select('id,location_id,move_start_time,move_end_time,start_x,start_y,target_x,target_y,credits,role,first_name,last_name,faction');
             if (!data) return;
-            data.forEach(fresh => {
+            data.forEach(raw => {
+                const fresh = this._normalize(raw);
                 const idx = this.players.findIndex(p => p.id === fresh.id);
                 if (idx !== -1) {
                     this.players[idx] = { ...this.players[idx], ...fresh };
                     if (fresh.id === this.myUserId) this.myProfile = this.players[idx];
                 }
             });
-        }, 15000);
+        }, 10000);
     },
 
-    // Обработка входящего обновления от Supabase
-    _handleRealtimeUpdate(payload) {
-        console.log('🔔 Realtime событие:', payload.eventType, payload.new?.id);
-        const fresh = payload.new;
-        if (!fresh || !fresh.id) return;
-
-        const idx = this.players.findIndex(p => p.id === fresh.id);
-
-        if (payload.eventType === 'DELETE') {
-            if (idx !== -1) this.players.splice(idx, 1);
-            return;
-        }
-
-        if (idx !== -1) {
-            // Обновляем существующего игрока
-            this.players[idx] = { ...this.players[idx], ...fresh };
-            if (fresh.id === this.myUserId) {
-                this.myProfile = this.players[idx];
-            }
-        } else {
-            // Новый игрок появился — добавляем
-            this.players.push(fresh);
-        }
-    },
-
-    // Отписка при выходе из игры
     stopSync() {
-        if (this._realtimeChannel) {
-            client.removeChannel(this._realtimeChannel);
-            this._realtimeChannel = null;
-        }
-        if (this._pollInterval) {
-            clearInterval(this._pollInterval);
-            this._pollInterval = null;
-        }
+        if (this._realtimeChannel) { client.removeChannel(this._realtimeChannel); this._realtimeChannel = null; }
+        if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
     },
 
-    // Обновить своего игрока локально после действия
     updatePlayer(updatedFields) {
         const idx = this.players.findIndex(p => p.id === this.myUserId);
         if (idx !== -1) {
-            this.players[idx] = { ...this.players[idx], ...updatedFields };
+            this.players[idx] = this._normalize({ ...this.players[idx], ...updatedFields });
             this.myProfile = this.players[idx];
         }
     },
 
-    getCastle(id)            { return this.castles.find(p => p.id == id) || null; },
-    getPlayer(id)            { return this.players.find(p => p.id === id) || null; },
-    getPlayersInCastle(cid)  { return this.players.filter(p => p.location_id == cid); },
+    getCastle(id)           { return this.castles.find(p => p.id == id) || null; },
+    getPlayer(id)           { return this.players.find(p => p.id === id) || null; },
+    getPlayersInCastle(cid) { return this.players.filter(p => p.location_id == cid); },
 
     getFactionName(code) {
         if (code === 'lion')   return 'Королевство Льва';
